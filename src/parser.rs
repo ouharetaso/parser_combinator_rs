@@ -46,7 +46,7 @@ where
     }
 }
 
-pub struct FnParser<F, A> {
+struct FnParser<F, A> {
     f: F,
     _phantom: std::marker::PhantomData<A>
 }
@@ -73,6 +73,17 @@ pub fn char1(c: char) -> impl Parser<Output = char> {
     })
 }
 
+pub fn any_char() -> impl Parser<Output = char> {
+    p_fn(|input| {
+        input
+            .chars()
+            .next()
+            .map(|c|{
+                (c, &input[c.len_utf8()..])
+            })
+    })
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -93,5 +104,14 @@ mod tests {
 
         assert_eq!(parse_ab.run("abcd"), Some(('b', "cd")));
         assert_eq!(parse_ab.run("bcde"), None);
+    }
+
+    #[test]
+    fn test_any_char() {
+        let parse_any_char = any_char();
+        let parse_any_2chars = parse_any_char.and_then(|_| any_char());
+
+        assert_eq!(parse_any_char.run("hello"), Some(('h', "ello")));
+        assert_eq!(parse_any_2chars.run("hello"), Some(('e', "llo")));
     }
 }
