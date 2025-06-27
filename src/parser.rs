@@ -168,6 +168,41 @@ pub fn char_range(range: impl std::ops::RangeBounds<char> + Clone) -> impl Parse
     })
 }
 
+pub fn select<A, P>(parsers: Vec<P>) -> impl Parser<Output = A>
+where
+    P: Parser<Output = A> + Clone
+{
+    p_fn(move |input| {
+        for p in &parsers {
+            if let res @ Some(_) = p.run(input) {
+                return res;
+            }
+        }
+        None
+    })
+}
+
+pub fn sequence<A, P>(parsers: Vec<P>) -> impl Parser<Output = Vec<A>>
+where
+    P: Parser<Output = A> + Clone
+{
+    p_fn(move |input| {
+        let mut res = Vec::new();
+        let mut input = input;
+
+        for p in &parsers {
+            if let Some((a, rest)) = p.run(input) {
+                res.push(a);
+                input = rest;
+            }
+            else {
+                return None;
+            }
+        }
+
+        Some((res, input))
+    })
+}
 
 #[cfg(test)]
 mod tests {
@@ -255,5 +290,45 @@ mod tests {
         assert_eq!(identifier.run("id123  "), Some(("id123".to_string(), "  ")));
         assert_eq!(identifier.run("_start;"), Some(("_start".to_string(), ";")));
         assert_eq!(identifier.run("8192u16"), None);
+    }
+
+    #[test]
+    fn test_select() {
+        let nums = ('0'..='9').map(|c| char1(c)).collect();
+        let digit = select(nums);
+        let digits = one_or_more(digit.clone());
+
+        assert_eq!(digit.run("0123"), Some(('0', "123")));
+        assert_eq!(digit.run("abcd"), None);
+        assert_eq!(digits.run("1234usize"), Some((vec!['1', '2', '3', '4'], "usize")));
+        assert_eq!(digits.run("hello1234"), None);        
+    }
+
+    #[test]
+    fn test_sequence() {
+        let abc = sequence(vec![char1('a'), char1('b'), char1('c')]);
+
+        assert_eq!(
+            abc.run("abcdef"),
+            Some((vec!['a','b','c'], "def"))
+        );
+
+        assert_eq!(
+            abc.run("axcdef"),
+            None
+        );
+
+        assert_eq!(
+            abc.run("ab"),
+            None
+        );
+
+        let mut char_parser_vec = vec![char1('a')];
+        char_parser_vec.clear();
+        let parse_nothing = sequence(char_parser_vec);
+        assert_eq!(
+            parse_nothing.run("anything is ok"),
+            Some((vec![], "anything is ok"))
+        );
     }
 }
