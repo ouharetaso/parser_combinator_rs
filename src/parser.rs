@@ -118,7 +118,7 @@ pub fn any_char() -> impl Parser<Output = char> {
     })
 }
 
-pub fn zero_or_more<A>(p: impl Parser<Output = A>) -> impl Parser<Output = Vec<A>> {
+pub fn many0<A>(p: impl Parser<Output = A>) -> impl Parser<Output = Vec<A>> {
     p_fn(move |input| {
         let mut input = input;
         let mut vec = Vec::new();
@@ -134,7 +134,7 @@ pub fn zero_or_more<A>(p: impl Parser<Output = A>) -> impl Parser<Output = Vec<A
     })
 }
 
-pub fn one_or_more<A>(p: impl Parser<Output = A>) -> impl Parser<Output = Vec<A>> {
+pub fn many1<A>(p: impl Parser<Output = A>) -> impl Parser<Output = Vec<A>> {
     p_fn(move |input| {
         let mut input = input;
         let mut vec = Vec::new();
@@ -168,7 +168,9 @@ pub fn char_range(range: impl std::ops::RangeBounds<char> + Clone) -> impl Parse
     })
 }
 
-pub fn select<A, P>(parsers: Vec<P>) -> impl Parser<Output = A>
+// maybe i won't use these functions
+#[allow(dead_code)]
+fn select<A, P>(parsers: Vec<P>) -> impl Parser<Output = A>
 where
     P: Parser<Output = A> + Clone
 {
@@ -182,7 +184,8 @@ where
     })
 }
 
-pub fn sequence<A, P>(parsers: Vec<P>) -> impl Parser<Output = Vec<A>>
+#[allow(dead_code)]
+fn sequence<A, P>(parsers: Vec<P>) -> impl Parser<Output = Vec<A>>
 where
     P: Parser<Output = A> + Clone
 {
@@ -248,9 +251,9 @@ mod tests {
     }
 
     #[test]
-    fn test_zero_or_more() {
+    fn test_many0() {
         let parse_a = char1('a');
-        let parse_repeat_a = zero_or_more(parse_a);
+        let parse_repeat_a = many0(parse_a);
 
         assert_eq!(parse_repeat_a.run("abc"), Some((vec!['a'], "bc")));
         assert_eq!(parse_repeat_a.run("aaaabc"), Some((vec!['a', 'a', 'a', 'a'], "bc")));
@@ -258,9 +261,9 @@ mod tests {
     }
 
     #[test]
-    fn test_one_or_more() {
+    fn test_many1() {
         let parse_a = char1('a');
-        let parse_repeat_one_more_a = one_or_more(parse_a);
+        let parse_repeat_one_more_a = many1(parse_a);
 
         assert_eq!(parse_repeat_one_more_a.run("abc"), Some((vec!['a'], "bc")));
         assert_eq!(parse_repeat_one_more_a.run("aaaabc"), Some((vec!['a', 'a', 'a', 'a'], "bc")));
@@ -280,7 +283,7 @@ mod tests {
         let identifier_rest = underscore.clone().or_else(alpha_numeral);
 
         let identifier = identifier_first.clone().and_then(move|first| {
-            zero_or_more(identifier_rest.clone()).map(move |mut rest| {
+            many0(identifier_rest.clone()).map(move |mut rest| {
                 let mut chars = vec![first];
                 chars.append(&mut rest);
                 chars.into_iter().collect::<String>()
@@ -296,7 +299,7 @@ mod tests {
     fn test_select() {
         let nums = ('0'..='9').map(|c| char1(c)).collect();
         let digit = select(nums);
-        let digits = one_or_more(digit.clone());
+        let digits = many1(digit.clone());
 
         assert_eq!(digit.run("0123"), Some(('0', "123")));
         assert_eq!(digit.run("abcd"), None);
