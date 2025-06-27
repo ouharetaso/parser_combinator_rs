@@ -168,6 +168,17 @@ pub fn char_range(range: impl std::ops::RangeBounds<char> + Clone) -> impl Parse
     })
 }
 
+pub fn string(str: &'static str) -> impl Parser<Output = String> {
+    p_fn(move|input| {
+        if input.starts_with(str) {
+            Some((input[..str.len()].to_string(), &input[str.len()..]))
+        }
+        else {
+            None
+        }
+    })
+}
+
 // maybe i won't use these functions
 #[allow(dead_code)]
 fn select<A, P>(parsers: Vec<P>) -> impl Parser<Output = A>
