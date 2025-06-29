@@ -96,28 +96,6 @@ where
     }
 }
 
-pub fn char1(c: char) -> impl Parser<Output = char> {
-    p_fn(move |input| {
-        if input.starts_with(c) {
-            Some((c, &input[c.len_utf8()..]))
-        }
-        else {
-            None
-        }
-    })
-}
-
-pub fn any_char() -> impl Parser<Output = char> {
-    p_fn(|input| {
-        input
-            .chars()
-            .next()
-            .map(|c|{
-                (c, &input[c.len_utf8()..])
-            })
-    })
-}
-
 pub fn option<A>(p: impl Parser<Output = A>) -> impl Parser<Output = Option<A>> {
     p_fn(move |input|{
         match p.run(input) {
@@ -192,6 +170,28 @@ pub fn left<A, B>(p1: impl Parser<Output = A>, p2: impl Parser<Output = B>) -> i
 
 pub fn right<A, B>(p1: impl Parser<Output = A>, p2: impl Parser<Output = B>) -> impl Parser<Output = B> {
     pair(p1, p2).map(|(_a, b)| b)
+}
+
+pub fn char1(c: char) -> impl Parser<Output = char> {
+    p_fn(move |input| {
+        if input.starts_with(c) {
+            Some((c, &input[c.len_utf8()..]))
+        }
+        else {
+            None
+        }
+    })
+}
+
+pub fn any_char() -> impl Parser<Output = char> {
+    p_fn(|input| {
+        input
+            .chars()
+            .next()
+            .map(|c|{
+                (c, &input[c.len_utf8()..])
+            })
+    })
 }
 
 pub fn char_range(range: impl std::ops::RangeBounds<char> + Clone) -> impl Parser<Output = char> {
