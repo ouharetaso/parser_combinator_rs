@@ -177,6 +177,23 @@ pub fn pair<A, B>(p1: impl Parser<Output = A>, p2: impl Parser<Output = B>) -> i
     })
 }
 
+pub fn not<A>(p: impl Parser<Output = A>) -> impl Parser<Output = ()> {
+    p_fn(move |input|
+        match p.run(input) {
+            Some(_) => None,
+            None => Some(((), input))
+        }
+    )
+}
+
+pub fn left<A, B>(p1: impl Parser<Output = A>, p2: impl Parser<Output = B>) -> impl Parser<Output = A> {
+    pair(p1, p2).map(|(a, _b)| a)
+}
+
+pub fn right<A, B>(p1: impl Parser<Output = A>, p2: impl Parser<Output = B>) -> impl Parser<Output = B> {
+    pair(p1, p2).map(|(_a, b)| b)
+}
+
 pub fn char_range(range: impl std::ops::RangeBounds<char> + Clone) -> impl Parser<Output = char> {
     p_fn(move|input| {
         if let Some(c) =  input.chars().next() {
@@ -346,6 +363,40 @@ mod tests {
         assert_eq!(sign.run("123"), Some(("".to_string(), "123")));
         assert_eq!(sign.run("+123"), Some(("+".to_string(), "123")));
         assert_eq!(sign.run("-123"), Some(("-".to_string(), "123")));
+    }
+
+    #[test]
+    fn test_not() {
+        let not_a = not(char1('a'));
+        let not_a_string = many1(
+            not_a.and_then(|_| any_char())
+        )
+        .map(|cs| cs.iter().collect::<String>());
+
+        assert_eq!(not_a_string.run("bcdefg"), Some(("bcdefg".to_string(), "")));
+        assert_eq!(not_a_string.run("bcdefa"), Some(("bcdef".to_string(), "a")));
+        assert_eq!(not_a_string.run("abcdef"), None);
+    }
+
+    #[test]
+    fn test_left_right() {
+        let string_inner = many0(
+            not(char1('"')).and_then(|_| any_char())
+        )
+        .map(|cs| cs.iter().collect::<String>());
+
+        let quoted_string = right(
+            char1('"'),
+            left(
+                    string_inner,
+                    char1('"')
+            )
+        );
+
+        assert_eq!(quoted_string.run("\"quoted string\""), Some(("quoted string".to_string(), "")));
+        assert_eq!(quoted_string.run("\"\""), Some(("".to_string(), "")));
+        assert_eq!(quoted_string.run("\"not closed quoted string"), None);
+        assert_eq!(quoted_string.run("quoted string will start\"hello\""), None);
     }
 
     #[test]
