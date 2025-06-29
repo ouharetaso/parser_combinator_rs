@@ -172,6 +172,36 @@ pub fn right<A, B>(p1: impl Parser<Output = A>, p2: impl Parser<Output = B>) -> 
     pair(p1, p2).map(|(_a, b)| b)
 }
 
+pub fn recognize<A>(p: impl Parser<Output = A>) -> impl Parser<Output = String> {
+    p_fn(move|input| {
+        let original_input = input;
+        p.run(input).map(|(_a, rest )| {
+            let consumed_len = original_input.len() - rest.len();
+            (original_input[..consumed_len].to_string(), rest)
+        })
+    })
+}
+
+pub fn take_while1<F>(f: F) -> impl Parser<Output = String>
+where
+    F: Fn(char) -> bool + Clone
+{
+    p_fn(move|input|{
+        let end_index = match input.char_indices().find(|&(_, c)| !f(c)) {
+            Some((index, _)) => index,
+            None => input.len()
+        };
+
+        if end_index > 0 {
+            let (matched, rest) = input.split_at(end_index);
+            Some((matched.to_string(), rest))
+        }
+        else {
+            None
+        }
+    }) 
+}
+
 pub fn char1(c: char) -> impl Parser<Output = char> {
     p_fn(move |input| {
         if input.starts_with(c) {
@@ -397,6 +427,28 @@ mod tests {
         assert_eq!(quoted_string.run("\"\""), Some(("".to_string(), "")));
         assert_eq!(quoted_string.run("\"not closed quoted string"), None);
         assert_eq!(quoted_string.run("quoted string will start\"hello\""), None);
+    }
+
+    #[test]
+    fn test_recognize() {
+        let digit = char_range('0'..='9');
+        let digits = many1(digit.clone());
+        let recognized_digits = recognize(digits);
+
+        assert_eq!(recognized_digits.run("123abc"), Some(("123".to_string(), "abc")));
+        assert_eq!(recognized_digits.run("abc123"), None);
+        assert_eq!(recognized_digits.run("456xyz789"), Some(("456".to_string(), "xyz789")));
+        assert_eq!(recognized_digits.run(""), None);
+    }
+
+    #[test]
+    fn test_take_while1() {
+        let take_digits = take_while1(|c| c.is_digit(10));
+
+        assert_eq!(take_digits.run("123abc"), Some(("123".to_string(), "abc")));
+        assert_eq!(take_digits.run("abc123"), None);
+        assert_eq!(take_digits.run("456xyz789"), Some(("456".to_string(), "xyz789")));
+        assert_eq!(take_digits.run(""), None);
     }
 
     #[test]
