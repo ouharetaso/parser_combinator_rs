@@ -118,6 +118,15 @@ pub fn any_char() -> impl Parser<Output = char> {
     })
 }
 
+pub fn option<A>(p: impl Parser<Output = A>) -> impl Parser<Output = Option<A>> {
+    p_fn(move |input|{
+        match p.run(input) {
+            Some((a, rest)) => Some((Some(a), rest)),
+            None => Some((None, input))
+        }
+    })
+}
+
 pub fn many0<A>(p: impl Parser<Output = A>) -> impl Parser<Output = Vec<A>> {
     p_fn(move |input| {
         let mut input = input;
@@ -154,6 +163,17 @@ pub fn many1<A>(p: impl Parser<Output = A>) -> impl Parser<Output = Vec<A>> {
                 None => break Some((vec, input))
             }
         }
+    })
+}
+
+pub fn pair<A, B>(p1: impl Parser<Output = A>, p2: impl Parser<Output = B>) -> impl Parser<Output = (A, B)> {
+    p_fn(move|input| {
+        if let Some((res1, rest1)) = p1.run(input) {
+            if let Some((res2, rest2)) = p2.run(rest1) {
+                return Some(((res1, res2), rest2));
+            }
+        }
+        None
     })
 }
 
@@ -304,6 +324,28 @@ mod tests {
         assert_eq!(identifier.run("id123  "), Some(("id123".to_string(), "  ")));
         assert_eq!(identifier.run("_start;"), Some(("_start".to_string(), ";")));
         assert_eq!(identifier.run("8192u16"), None);
+    }
+
+    #[test]
+    fn test_pair() {
+        let alphabet = char_range('a'..='z').clone().or_else(char_range('A'..='Z'));
+        let alphabets = many1(alphabet).map(|v| v.iter().collect::<String>());
+        let number = char_range('0'..='9');
+        let numbers = many1(number).map(|v| v.iter().collect::<String>());
+        let alphabet_then_number = pair(alphabets, numbers);
+
+        assert_eq!(alphabet_then_number.run("abc123"), Some((("abc".to_string(), "123".to_string()), "")));
+        assert_eq!(alphabet_then_number.run("123abc"), None);
+    }
+
+    #[test]
+    fn test_option() {
+        let sign = option(char1('+').or_else(char1('-')))
+            .map(|a| a.map(|c|c.to_string()).unwrap_or("".to_string()));
+
+        assert_eq!(sign.run("123"), Some(("".to_string(), "123")));
+        assert_eq!(sign.run("+123"), Some(("+".to_string(), "123")));
+        assert_eq!(sign.run("-123"), Some(("-".to_string(), "123")));
     }
 
     #[test]
