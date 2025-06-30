@@ -246,6 +246,16 @@ pub fn string(str: &'static str) -> impl Parser<Output = String> {
     })
 }
 
+
+#[macro_export]
+macro_rules! tuple {
+    ( $( $x: expr),*  ) => {
+        {
+
+        }
+    };
+}
+
 // maybe i won't use these functions
 #[allow(dead_code)]
 fn select<A, P>(parsers: Vec<P>) -> impl Parser<Output = A>
