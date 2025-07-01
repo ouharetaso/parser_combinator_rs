@@ -199,7 +199,30 @@ where
         else {
             None
         }
-    }) 
+    })
+}
+
+pub fn repeat_exact<A>(n: usize, p: impl Parser<Output = A>) -> impl Parser<Output = Vec<A>> {
+    p_fn(move|input|{
+        let mut input = input;
+        let mut result = Vec::<A>::new();
+        for _ in 0..n {
+            if let Some((a, rest)) = p.run(input) {
+                result.push(a);
+                input = rest
+            }
+            else {
+                return None
+            }
+        }
+
+        if let Some(_) = p.run(input) {
+            return None
+        }
+        else {
+            Some((result, input))
+        }
+    })
 }
 
 pub fn char1(c: char) -> impl Parser<Output = char> {
@@ -462,6 +485,17 @@ mod tests {
         assert_eq!(digit.run("abcd"), None);
         assert_eq!(digits.run("1234usize"), Some((vec!['1', '2', '3', '4'], "usize")));
         assert_eq!(digits.run("hello1234"), None);        
+    }
+
+    #[test]
+    fn test_repeat_exact() {
+        let repeat_a_4times = repeat_exact(4, char1('a'))
+            .map(|cs|cs.iter().collect::<String>());
+
+        assert_eq!(repeat_a_4times.run("aaaab"), Some(("aaaa".to_string(), "b")));
+        assert_eq!(repeat_a_4times.run("aaaa"), Some(("aaaa".to_string(), "")));
+        assert_eq!(repeat_a_4times.run("aaaaa"), None);
+        assert_eq!(repeat_a_4times.run("aaabb"), None);
     }
 
     #[test]
