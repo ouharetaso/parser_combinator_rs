@@ -47,7 +47,7 @@ pub trait Parser: Clone{
     }
 }
 
-fn p_fn<F, A>(f: F) -> FnParser<F, A>
+pub fn p_fn<F, A>(f: F) -> FnParser<F, A>
 where
     for<'i> F: Fn(&'i str) -> Option<(A, &'i str)> + Clone
 {
@@ -68,7 +68,7 @@ where
 }
 
 #[derive(Copy)]
-struct FnParser<F, A>
+pub struct FnParser<F, A>
 where
     for<'i> F: Fn(&'i str) -> Option<(A, &'i str)> + Clone
 {
