@@ -45,15 +45,23 @@ fn parse_number(input: &str) -> Option<(JsonValue, &str)> {
         )
     ));
 
-    let number = recognize(
+    let number_structure = pair(
+        integer,
         pair(
-            integer,
-            pair(
-                fraction,
-                exponent
-            )
+            fraction,
+            exponent
         )
-    )
+    );
+
+    let continuation_start = char1('.').or_else(char1('e')).or_else(char1('E'));
+
+    let validated_number_structure = left(
+        number_structure,
+        not(continuation_start)
+    );
+
+
+    let number = recognize(validated_number_structure)
     .map(|s|
         if let Ok(i) = s.parse::<i64>() {
             JsonValue::Number(JsonNumber::Integer(i))
@@ -260,6 +268,12 @@ mod tests {
         assert_eq!(parse_number("abc"), None);
         assert_eq!(parse_number("01"), None);
         assert_eq!(parse_number("+42"), None);
+        assert_eq!(parse_number("1."), None);
+        assert_eq!(parse_number(".5"), None);
+        assert_eq!(parse_number("1e"), None);
+        assert_eq!(parse_number("1e-"), None);
+        assert_eq!(parse_number("--1"), None);
+        assert_eq!(parse_number("1.2.3"), None);
     }
 
     #[test]
