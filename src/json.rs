@@ -265,8 +265,14 @@ mod tests {
     #[test]
     fn test_parse_string() {
         assert_eq!(parse_string(r#""string literal""#), Some(("string literal".to_string(), "")));
-        assert_eq!(parse_string(r#""not closed"#), None);
+        assert_eq!(parse_string(r#""""#), Some(("".to_string(), "")));
         assert_eq!(parse_string(r#""\\\/\b\f\n\r\t\u3042""#), Some(("\\/\x08\x0c\n\r\tあ".to_string(), "")));
+
+        assert_eq!(parse_string(r#""not closed"#), None);
+        assert_eq!(parse_string("\"unescaped newline\n\""), None);
+        assert_eq!(parse_string(r#"invalid escape \q"#), None);
+        assert_eq!(parse_string(r#"incomplete unicode escape \u123"#), None);
+
     }
 
     #[test]
