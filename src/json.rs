@@ -350,7 +350,7 @@ mod tests {
                 {
                     "name": "piyo",
                     "age": 9
-                },
+                }
             ]"#),
             Some(
                 JsonValue::Array(vec![
