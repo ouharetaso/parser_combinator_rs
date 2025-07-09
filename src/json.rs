@@ -45,15 +45,23 @@ fn parse_number(input: &str) -> Option<(JsonValue, &str)> {
         )
     ));
 
-    let number = recognize(
+    let number_structure = pair(
+        integer,
         pair(
-            integer,
-            pair(
-                fraction,
-                exponent
-            )
+            fraction,
+            exponent
         )
-    )
+    );
+
+    let continuation_start = char1('.').or_else(char1('e')).or_else(char1('E'));
+
+    let validated_number_structure = left(
+        number_structure,
+        not(continuation_start)
+    );
+
+
+    let number = recognize(validated_number_structure)
     .map(|s|
         if let Ok(i) = s.parse::<i64>() {
             JsonValue::Number(JsonNumber::Integer(i))
@@ -260,13 +268,25 @@ mod tests {
         assert_eq!(parse_number("abc"), None);
         assert_eq!(parse_number("01"), None);
         assert_eq!(parse_number("+42"), None);
+        assert_eq!(parse_number("1."), None);
+        assert_eq!(parse_number(".5"), None);
+        assert_eq!(parse_number("1e"), None);
+        assert_eq!(parse_number("1e-"), None);
+        assert_eq!(parse_number("--1"), None);
+        assert_eq!(parse_number("1.2.3"), None);
     }
 
     #[test]
     fn test_parse_string() {
         assert_eq!(parse_string(r#""string literal""#), Some(("string literal".to_string(), "")));
-        assert_eq!(parse_string(r#""not closed"#), None);
+        assert_eq!(parse_string(r#""""#), Some(("".to_string(), "")));
         assert_eq!(parse_string(r#""\\\/\b\f\n\r\t\u3042""#), Some(("\\/\x08\x0c\n\r\tあ".to_string(), "")));
+
+        assert_eq!(parse_string(r#""not closed"#), None);
+        assert_eq!(parse_string("\"unescaped newline\n\""), None);
+        assert_eq!(parse_string(r#"invalid escape \q"#), None);
+        assert_eq!(parse_string(r#"incomplete unicode escape \u123"#), None);
+
     }
 
     #[test]
@@ -282,6 +302,118 @@ mod tests {
     fn test_parse_null() {
         assert_eq!(parse_null("null"), Some((JsonValue::Null, "")));
         assert_eq!(parse_null("Null"), None);
+    }
+
+    #[test]
+    fn test_parse_object() {
+        assert_eq!(parse_object("{}"), Some((JsonValue::Object(HashMap::new()), "")));
+        assert_eq!(parse_object("{    }"), Some((JsonValue::Object(HashMap::new()), "")));
+
+        assert_eq!(
+            parse_object(
+            r#"{
+                "key" : "value"
+            }"#),
+            Some((
+                JsonValue::Object(
+                    vec![
+                        (
+                            "key".to_string(),
+                            JsonValue::String("value".to_string())
+                        )
+                    ]
+                    .into_iter()
+                    .collect()
+                ),
+                ""
+            ))
+        );
+        
+        assert_eq!(
+            parse_object(
+            r#"{
+                "a":
+                {
+                    "b": true
+                },
+                "c":
+                [
+                    null
+                ]
+            }"#),
+            Some((
+                JsonValue::Object(
+                    vec![
+                        (
+                            "a".to_string(),
+                            JsonValue::Object(
+                                vec![
+                                    (
+                                        "b".to_string(),
+                                        JsonValue::Bool(true)
+                                    )
+                                ]
+                                .into_iter()
+                                .collect()
+                            )
+                        ),
+                        (
+                            "c".to_string(),
+                            JsonValue::Array(vec![
+                                JsonValue::Null
+                            ])
+                        )
+                    ]
+                    .into_iter()
+                    .collect()
+                ),
+                ""
+            ))
+        );
+
+        assert_eq!(parse_object(r#"{"key": "value", }"#), None);
+        assert_eq!(parse_object(r#"{key: "value" }"#), None);
+        assert_eq!(parse_object(r#"{"key": }"#), None);
+        assert_eq!(parse_object(r#"{"key" "value"}"#), None);
+        assert_eq!(parse_object(r#"{"key": "value""#), None);
+    }
+
+    #[test]
+    fn test_parse_array() {
+        assert_eq!(parse_array(r#"[]"#), Some((JsonValue::Array(vec![]), "")));
+        assert_eq!(
+            parse_array(r#"[ 123, 45.6, "78.9", false, null, { "key": "value" }, [ true, true, true ] ]"#),
+            Some((
+                JsonValue::Array(vec![
+                    JsonValue::Number(JsonNumber::Integer(123)),
+                    JsonValue::Number(JsonNumber::Float(45.6)),
+                    JsonValue::String("78.9".to_string()),
+                    JsonValue::Bool(false),
+                    JsonValue::Null,
+                    JsonValue::Object(
+                        vec![
+                            (
+                                "key".to_string(),
+                                JsonValue::String("value".to_string())
+                            )
+                        ]
+                        .into_iter()
+                        .collect()
+                    ),
+                    JsonValue::Array(vec![
+                        JsonValue::Bool(true),
+                        JsonValue::Bool(true),
+                        JsonValue::Bool(true)
+                    ])
+                ]),
+                ""
+            ))
+        );
+
+        assert_eq!(parse_array(r#"[1, 2, ]"#), None);
+        assert_eq!(parse_array(r#"[1 2]"#), None);
+        assert_eq!(parse_array(r#"[1,"#), None);
+        assert_eq!(parse_array(r#"["#), None);
     }
 
     #[test]
@@ -344,7 +476,7 @@ mod tests {
                 {
                     "name": "piyo",
                     "age": 9
-                },
+                }
             ]"#),
             Some(
                 JsonValue::Array(vec![

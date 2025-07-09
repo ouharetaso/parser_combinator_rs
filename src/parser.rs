@@ -495,6 +495,11 @@ mod tests {
         assert_eq!(repeat_a_4times.run("aaaa"), Some(("aaaa".to_string(), "")));
         assert_eq!(repeat_a_4times.run("aaaaa"), None);
         assert_eq!(repeat_a_4times.run("aaabb"), None);
+
+        let repeat_a_0times = repeat_exact(0, char1('a'));
+        assert_eq!(repeat_a_0times.run("b"), Some((vec![], "b")));
+        assert_eq!(repeat_a_0times.run(""), Some((vec![], "")));
+        assert_eq!(repeat_a_0times.run("a"), None);
     }
 
     #[test]
