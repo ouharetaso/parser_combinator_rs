@@ -291,6 +291,80 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_object() {
+        assert_eq!(parse_object("{}"), Some((JsonValue::Object(HashMap::new()), "")));
+        assert_eq!(parse_object("{    }"), Some((JsonValue::Object(HashMap::new()), "")));
+
+        assert_eq!(
+            parse_object(
+            r#"{
+                "key" : "value"
+            }"#),
+            Some((
+                JsonValue::Object(
+                    vec![
+                        (
+                            "key".to_string(),
+                            JsonValue::String("value".to_string())
+                        )
+                    ]
+                    .into_iter()
+                    .collect()
+                ),
+                ""
+            ))
+        );
+        
+        assert_eq!(
+            parse_object(
+            r#"{
+                "a":
+                {
+                    "b": true
+                },
+                "c":
+                [
+                    null
+                ]
+            }"#),
+            Some((
+                JsonValue::Object(
+                    vec![
+                        (
+                            "a".to_string(),
+                            JsonValue::Object(
+                                vec![
+                                    (
+                                        "b".to_string(),
+                                        JsonValue::Bool(true)
+                                    )
+                                ]
+                                .into_iter()
+                                .collect()
+                            )
+                        ),
+                        (
+                            "c".to_string(),
+                            JsonValue::Array(vec![
+                                JsonValue::Null
+                            ])
+                        )
+                    ]
+                    .into_iter()
+                    .collect()
+                ),
+                ""
+            ))
+        );
+
+        assert_eq!(parse_object(r#"{"key": "value", }"#), None);
+        assert_eq!(parse_object(r#"{key: "value" }"#), None);
+        assert_eq!(parse_object(r#"{"key": }"#), None);
+        assert_eq!(parse_object(r#"{"key" "value"}"#), None);
+        assert_eq!(parse_object(r#"{"key": "value""#), None);
+    }
+
+    #[test]
     fn test_parse_json() {
         assert_eq!(
             parse_json(r#"{}"#),
