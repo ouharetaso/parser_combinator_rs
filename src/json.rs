@@ -365,6 +365,44 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_array() {
+        assert_eq!(parse_array(r#"[]"#), Some((JsonValue::Array(vec![]), "")));
+        assert_eq!(
+            parse_array(r#"[ 123, 45.6, "78.9", false, null, { "key": "value" }, [ true, true, true ] ]"#),
+            Some((
+                JsonValue::Array(vec![
+                    JsonValue::Number(JsonNumber::Integer(123)),
+                    JsonValue::Number(JsonNumber::Float(45.6)),
+                    JsonValue::String("78.9".to_string()),
+                    JsonValue::Bool(false),
+                    JsonValue::Null,
+                    JsonValue::Object(
+                        vec![
+                            (
+                                "key".to_string(),
+                                JsonValue::String("value".to_string())
+                            )
+                        ]
+                        .into_iter()
+                        .collect()
+                    ),
+                    JsonValue::Array(vec![
+                        JsonValue::Bool(true),
+                        JsonValue::Bool(true),
+                        JsonValue::Bool(true)
+                    ])
+                ]),
+                ""
+            ))
+        );
+
+        assert_eq!(parse_array(r#"[1, 2, ]"#), None);
+        assert_eq!(parse_array(r#"[1 2]"#), None);
+        assert_eq!(parse_array(r#"[1,"#), None);
+        assert_eq!(parse_array(r#"["#), None);
+    }
+
+    #[test]
     fn test_parse_json() {
         assert_eq!(
             parse_json(r#"{}"#),
